@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import heapq
 from datetime import datetime
-import os
 
 place_names = ['Bảo tàng Quốc gia', 'Công viên Trung tâm', 'Di tích Lịch Sử',
                'Đồi Nghệ Thuật', 'Chợ đêm Sài Gòn', 'Hồ Thiên Nga', 'Làng Văn Hóa', 'Vườn Thực Vật', 'Nhà hát Thành Phố']
@@ -14,8 +13,7 @@ positions = {
     6: (250, 60), 7: (400, 200), 8: (550, 180),
 }
 
-icons = ['🏛', '🌳', '🏰', '⛰', '🛕', '🦢', '🏡', '🌺', '🎭']
-
+icons = ['🏛️', '🌳', '🏰', '🎨', '🛍️', '🦢', '🏡', '🌼', '🎭']
 selected_indices = []
 final_summary = ""
 steps_text = ""
@@ -54,10 +52,14 @@ step_view.config(state="disabled")
 ttk.Label(frame_input, text="Chọn địa điểm:", font=("Arial", 11, "bold")).pack(anchor="w")
 checkbox_vars = []
 for i, name in enumerate(place_names):
-    var = tk.IntVar(value=0)  # Không tick sẵn
+    var = tk.IntVar(value=0)
     cb = tk.Checkbutton(frame_input, text=f"{name} ({places[i][0]}h - {places[i][1]} điểm)", variable=var, bg="#f0f0f0")
     cb.pack(anchor="w")
     checkbox_vars.append(var)
+
+def select_all_places():
+    for var in checkbox_vars:
+        var.set(1)
 
 hours = [f"{h:02d}" for h in range(7, 23)]
 minutes = [f"{m:02d}" for m in range(60)]
@@ -127,9 +129,14 @@ def draw_graph(selected):
         r = 20
         fill = pastel_color if i in selected else "#fff"
         canvas.create_oval(x - r, y - r, x + r, y + r, fill=fill, outline="black")
-        canvas.create_text(x, y, text=icons[i], font=("Arial", 14))
+
+        # Dùng font Segoe UI Emoji cho emoji căn giữa chính xác
+        canvas.create_text(x, y - 2, text=icons[i], font=("Segoe UI Emoji", 20), anchor="center")
+
+        # Vẽ tên địa điểm
         canvas.create_text(x, y + 28, text=name, font=("Arial", 9), anchor="n")
 
+    # Vẽ các đường nối tour
     for i in range(len(selected) - 1):
         a, b = selected[i], selected[i + 1]
         x1, y1 = positions[a]
@@ -160,6 +167,9 @@ def start_tour():
     try:
         start = datetime.strptime(f"{start_hour.get()}:{start_min.get()}", "%H:%M")
         end = datetime.strptime(f"{end_hour.get()}:{end_min.get()}", "%H:%M")
+        if start >= end:
+            messagebox.showerror("Lỗi thời gian", "Giờ bắt đầu phải nhỏ hơn giờ kết thúc.")
+            return
         max_time = (end - start).seconds // 3600
     except:
         messagebox.showerror("Lỗi", "Sai định dạng thời gian.")
@@ -171,6 +181,18 @@ def start_tour():
     sub_places = [places[i] for i in selected_indices]
     tour, score, steps = gbfs_tour_knapsack(max_time, sub_places, selected_indices)
     selected_indices = tour
+
+    if not selected_indices:
+        messagebox.showinfo("Thông báo", "Không đủ thời gian để tham quan địa điểm nào!")
+        desc.delete("1.0", tk.END)
+        step_view.config(state="normal")
+        step_view.delete("1.0", tk.END)
+        step_view.insert(tk.END, "\n".join(steps))
+        step_view.config(state="disabled")
+        draw_graph([])
+        final_summary = ""
+        return
+
     draw_graph(selected_indices)
     desc.delete("1.0", tk.END)
     summary = f"🎯 Tổng điểm đạt được: {score} điểm\n"
@@ -187,8 +209,9 @@ def start_tour():
     step_view.insert(tk.END, "\n".join(steps))
     step_view.config(state="disabled")
 
-tk.Button(frame_input, text="Tìm Tour Tối Ưu", command=start_tour, bg="#4CAF50", fg="white").pack(pady=10, fill="x")
-tk.Button(frame_input, text="🔄 Reset", command=reset_all, bg="#f44336", fg="white").pack(pady=5, fill="x")
+tk.Button(frame_input, text="Tìm Tour Tối Ưu", command=start_tour, bg="#4CAF50", fg="white").pack(pady=5, fill="x")
+tk.Button(frame_input, text="Chọn tất cả", command=select_all_places, bg="#009688", fg="white").pack(pady=5, fill="x")
+tk.Button(frame_input, text="Reset", command=reset_all, bg="#f44336", fg="white").pack(pady=5, fill="x")
 tk.Button(frame_output, text="📤 Xuất lộ trình", command=export_summary, bg="#2196F3", fg="white").pack(pady=5, fill="x")
 
 draw_graph([])
